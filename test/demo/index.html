@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Expected outcome of form validaton</title>
+  <script defer nomodule src="../../dist/demo.js"></script>
+  <script defer type="module" src="../../src/demo.es6.js"></script>
+
+  <style>
+    *,
+    *:before,
+    *:after {
+      box-sizing: border-box;
+    }
+    custom-form,
+    custom-formcontrol {
+      display: block;
+    }
+
+    body {
+      font-family: Avenir Next, Avenir, SegoeUI, arial, sans-serif;
+      line-height: 1.5;
+    }
+    .form-control {
+      max-width: 35em;
+      margin: 1.25rem 0;
+    }
+    .error {
+      outline: 1px solid red;
+    }
+
+    label {
+      display: block;
+    }
+
+    input:not([type="radio"]):not([type="checkbox"]) {
+      width: 100%;
+      padding: .25em;
+      font: inherit;
+    }
+
+    .error-message {
+      border: 1px solid red;
+      color: red;
+      margin: 1em 0;
+      padding: .5em;
+    }
+  </style>
+</head>
+<body>
+  
+  <h1>Form validation demo!</h1>
+
+  <custom-form>
+    <form action=".">
+      <div class="form-control">
+        <label for="non-custom-field">Non custom required text input</label>
+        <input type="text" id="non-custom-field" required>
+      </div>
+      <custom-formcontrol class="form-control" valuemissing="Hallå, du måste skriva nåt här." tooshort="Alltså, typ minst 20 tecken." typemismatch="Ser inte ut att vara en giltig URL...">
+        <label for="custom-field">Custom required URL input</label>
+        <input type="url" minlength="20" id="custom-field" required>
+      </custom-formcontrol>
+
+      <custom-formcontrol class="form-control" valuemissing="Hallå, du måste skriva en siffra." stepmismatch="Måste vara ett jämnt tal!">
+        <label for="custom-field">Custom required number input</label>
+        <input type="number" required min="0" max="10" step="2" value="3" id="custom-field-range">
+      </custom-formcontrol>
+
+      <button type="submit">Send</button>
+    </form>
+  </custom-form>
+</body>
+</html>
