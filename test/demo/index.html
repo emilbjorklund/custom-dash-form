@@ -22,15 +22,25 @@
       line-height: 1.5;
     }
     .form-control {
+      padding: 1em 0;
       max-width: 35em;
       margin: 1.25rem 0;
     }
+    
+    .form-control + .form-control {
+      border-top: 1px solid;
+    }
+
     .error {
       outline: 1px solid red;
     }
 
     label {
       display: block;
+    }
+
+    .error-label {
+      color: red;
     }
 
     input:not([type="radio"]):not([type="checkbox"]) {
@@ -57,17 +67,51 @@
         <label for="non-custom-field">Non custom required text input</label>
         <input type="text" id="non-custom-field" required>
       </div>
+
+      <div class="form-control">
+        <label for="non-custom-select">Select something here, please:</label>
+        <select name="non-custom-select" required id="non-custom-select">
+          <option value="">(No selection made)</option>
+          <option value="1">Option 1</option>
+          <option value="2">Option 2</option>
+        </select>
+      </div>
+
+      <div class="form-control">
+        <label for="non-custom-select-optional">This one is optional:</label>
+        <select name="non-custom-select-optional" id="non-custom-select-optional">
+          <option value="">(No selection made)</option>
+          <option value="1">Option 1</option>
+          <option value="2">Option 2</option>
+        </select>
+      </div>
+      
+      <div class="form-control">
+        <label>
+          <input id="non-custom-checkbox" type="checkbox" required>
+          Please check this box
+        </label>
+      </div>
+
+      <custom-formcontrol class="form-control" valuemissing="Du måste verkligen fylla i den här.">
+        <label>
+          <input id="custom-checkbox" type="checkbox" required>
+          Please check this box, too.
+        </label>
+      </custom-formcontrol>
+
       <custom-formcontrol class="form-control" valuemissing="Hallå, du måste skriva nåt här." tooshort="Alltså, typ minst 20 tecken." typemismatch="Ser inte ut att vara en giltig URL...">
         <label for="custom-field">Custom required URL input</label>
         <input type="url" minlength="20" id="custom-field" required>
       </custom-formcontrol>
 
       <custom-formcontrol class="form-control" valuemissing="Hallå, du måste skriva en siffra." stepmismatch="Måste vara ett jämnt tal!">
-        <label for="custom-field">Custom required number input</label>
-        <input type="number" required min="0" max="10" step="2" value="3" id="custom-field-range">
+        <label for="custom-field-number">Custom required number input</label>
+        <input type="number" required min="0" max="10" step="2" value="3" id="custom-field-number">
       </custom-formcontrol>
 
       <button type="submit">Send</button>
+      <button type="submit" formnovalidate>Send without validation</button>
     </form>
   </custom-form>
 </body>
