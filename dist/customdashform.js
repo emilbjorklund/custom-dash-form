@@ -101,6 +101,14 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
+/**
+ * @module src/CustomForm
+ */
+
+/**
+ * Class for custom form wrapper elements.
+ * @extends HTMLElement
+ */
 var _class = function (_HTMLElement) {
   _inherits(_class, _HTMLElement);
 
@@ -383,7 +391,10 @@ var _class = function (_HTMLElement) {
           item.classList.add(_this4._fieldErrorClass);
         });
       }
-      this._revealErrorMessage(this._createErrorMessage(field, error));
+      var errorMessage = this._createErrorMessage(field, error);
+      if (errorMessage) {
+        this._revealErrorMessage(errorMessage);
+      }
     }
 
     /**
@@ -454,7 +465,7 @@ var _class = function (_HTMLElement) {
     value: function _shouldNotValidate(field) {
 
       if (field.disabled || // 1
-      field.closest('fieldset[disabled]') || // 2
+      field._disabled || field.closest('fieldset[disabled]') || // 2
       this._ignoredTypes.indexOf(field.type) > -1 // 3
       ) {
           return true;
@@ -712,25 +723,35 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 /**
+ * Class for custom form control elements.§
+ * @module  src/CustomFormControl
+ * @moduledesc
  * This is a base for custom form controls, meaning custom elements wrapping
  * an HTML form field or some other similar custom construction that can 
  * be validated.
  *
  * It is expected that custom elements derived from this will have a parent 
- * element based on the CustomForm class, wrapping a normal <form>.
+ * element based on the CustomForm class, wrapping a normal `<form>`.
  *
  * By default, custom form controls can have attributes mapping to text for
  * custom validation messages, as DOM attributes on the custom
  * element itself. The names of these are lowercase variants of the standardized
- * validity types (valueMissing, patternMismatch etc).
+ * validity types (`valueMissing`, `patternMismatch` etc).
  *
  * Example for when the required attribute is used (mapping to `valueMissing`): 
+ * 
  * ```
  * <custom-control valuemissing="You must fill in this value, mate.">
  *   <input required>
  * </custom-control>
  * ```
- * This file does not define a custom element name: you must do that yourself.
+ * This file does not define a custom element name: you must do that yourself,
+ * e.g:
+ * 
+ * ```
+ * import {CustomFormControl} from 'custom-dash-forms';
+ * window.customElements.define('my-custom-formcontrol', CustomFormControl);
+ * ```
  *
  * If you need different functionality, you can extend this class and 
  * override any methods you like. For example, if you’d like to wholesale translate
@@ -738,12 +759,12 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
  * which then looks up the validityType in an object.
  *
  * Another example is if you build a wholly custom validation, which should then
- * override the _getValidity method (and other methods you need to override.)
+ * override the `_validity` getter (and other methods you need to override.)
  *
- * By default, the _getValidity method just delegates to the native validation,
+ * By default, the `_validity` getter just delegates to the native validation,
  * via the parent CustomForm.
+ * @extends HTMLElement
  */
-
 var _class = function (_HTMLElement) {
   _inherits(_class, _HTMLElement);
 
@@ -881,6 +902,25 @@ var _class = function (_HTMLElement) {
     get: function get() {
       return this._field.validity;
     }
+
+    /**
+     * Get disabled status of field
+     */
+
+  }, {
+    key: '_disabled',
+    get: function get() {
+      return this._field.disabled;
+    }
+    /**
+     * Set disabled status
+     * @param  {boolean} onoff - status of disabled property of the inner field.
+     */
+    ,
+    set: function set(onoff) {
+      this._field.disabled = !!onoff;
+    }
+
     /**
      * Getter for the HTML form field inside this control wrapper. You will need
      * to override this if you create a custom form control for types of controls
