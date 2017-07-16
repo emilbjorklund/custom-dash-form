@@ -1,5 +1,12 @@
+/**
+ * @module src/CustomForm
+ */
 
 
+/**
+ * Class for custom form wrapper elements.
+ * @extends HTMLElement
+ */
 export default class extends HTMLElement {
   /**
    * Custom element reaction when element is connected to the DOM.

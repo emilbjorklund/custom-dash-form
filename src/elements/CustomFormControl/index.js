@@ -1,23 +1,34 @@
+
 /**
+ * Class for custom form control elements.§
+ * @module  src/CustomFormControl
+ * @moduledesc
  * This is a base for custom form controls, meaning custom elements wrapping
  * an HTML form field or some other similar custom construction that can 
  * be validated.
  *
  * It is expected that custom elements derived from this will have a parent 
- * element based on the CustomForm class, wrapping a normal <form>.
+ * element based on the CustomForm class, wrapping a normal `<form>`.
  *
  * By default, custom form controls can have attributes mapping to text for
  * custom validation messages, as DOM attributes on the custom
  * element itself. The names of these are lowercase variants of the standardized
- * validity types (valueMissing, patternMismatch etc).
+ * validity types (`valueMissing`, `patternMismatch` etc).
  *
  * Example for when the required attribute is used (mapping to `valueMissing`): 
+ * 
  * ```
  * <custom-control valuemissing="You must fill in this value, mate.">
  *   <input required>
  * </custom-control>
  * ```
- * This file does not define a custom element name: you must do that yourself.
+ * This file does not define a custom element name: you must do that yourself,
+ * e.g:
+ * 
+ * ```
+ * import {CustomFormControl} from 'custom-dash-forms';
+ * window.customElements.define('my-custom-formcontrol', CustomFormControl);
+ * ```
  *
  * If you need different functionality, you can extend this class and 
  * override any methods you like. For example, if you’d like to wholesale translate
@@ -25,12 +36,12 @@
  * which then looks up the validityType in an object.
  *
  * Another example is if you build a wholly custom validation, which should then
- * override the _getValidity method (and other methods you need to override.)
+ * override the `_validity` getter (and other methods you need to override.)
  *
- * By default, the _getValidity method just delegates to the native validation,
+ * By default, the `_validity` getter just delegates to the native validation,
  * via the parent CustomForm.
+ * @extends HTMLElement
  */
-
 export default class extends HTMLElement {
   connectedCallback() {
     // Since we do not know if required child elements
