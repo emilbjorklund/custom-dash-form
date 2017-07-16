@@ -364,6 +364,7 @@ export default class extends HTMLElement {
   _shouldNotValidate(field) {
     
     if (field.disabled || // 1
+        field._disabled ||
         field.closest('fieldset[disabled]') || // 2
         this._ignoredTypes.indexOf(field.type) > -1 // 3
         ) {

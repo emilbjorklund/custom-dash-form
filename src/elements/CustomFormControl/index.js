@@ -58,6 +58,22 @@ export default class extends HTMLElement {
   get _validity() {
     return this._field.validity;
   }
+
+  /**
+   * Get disabled status of field
+   */
+  get _disabled() {
+    return this._field.disabled;
+  }
+  /**
+   * Set disabled status
+   * @param  {boolean} onoff - status of disabled property of the inner field.
+   */
+  set _disabled(onoff) {
+    this._field.disabled = !!onoff;
+  }
+
+
   /**
    * Getter for the HTML form field inside this control wrapper. You will need
    * to override this if you create a custom form control for types of controls
