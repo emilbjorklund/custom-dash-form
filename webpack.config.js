@@ -14,7 +14,8 @@ const uglify_options = {
 
 module.exports = {
   entry: {
-    demo: './src/demo.js'
+    'demo': './src/demo.js',
+    'customdashform': './src/customdashform.js'
   },
   devtool: 'source-map',
   module: {
@@ -25,7 +26,13 @@ module.exports = {
         use: {
           loader: 'babel-loader',
           options: {
-            presets: [['env']]
+            presets: [['env', {
+              targets: {
+                browsers: pkg.browserlist
+              },
+              useBuiltins: true,
+              debug: true
+            }]]
           }
         }
       }
