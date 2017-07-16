@@ -1,41 +1,78 @@
-export default class extends HTMLElement {
 
+
+export default class extends HTMLElement {
+  /**
+   * Custom element reaction when element is connected to the DOM.
+   */
   connectedCallback() {
+    // Track errors, initialize as an empty Array.
     this._hasErrors = [];
+    // Set the custom controls ”registry” to be a map, so that
+    // we can use the actual HTML form field as key, and the custom field 
+    // as value - this allows us to determine easily if a form field belongs
+    // to a custom control when validating fields. 
     this._customControls = new Map();
+
     // Only initialize DOM stuff once.
     if (!this._isInitialized) {
       window.requestAnimationFrame(() => this._init());
     }
   }
 
+  /**
+   * Initialize the custom element, if the form exists. Otherwise, try again
+   * later.
+   */
   _init() {
     // Grab the form (the first one, and only _one_.)
     this._form = this.querySelector('form');
-    // If there isn't a form, quit.
+    
+    // If there isn't a form, reinitialize again after a tick.
     if (!this._form) {
+      window.requestAnimationFrame(() => this._init());
       return;
     }
+
+    // If there is a form, we can set the flag and move on.
     this._isInitialized = true;
+
+    // Set the `novalidate` attr so that native form validation messages
+    // are disabled.
     this._form.setAttribute('novalidate', '');
+
+    // When a field is blurred, handle validation.
     this.addEventListener('blur', this._blurHandler, true);
+
+    // When the form is submitted, handle full validation
     this.addEventListener('submit', this._submitHandler, false);
+
+    // Listen for custom element children registering as custom controls.
     this.addEventListener('dashform:registercontrol', this._onregisterCustomControl.bind(this), false);
   }
+
+  /**
+   * Shortcut to programmatically disconnect, if needed.
+   */
   _destroy() {
     this.disconnectedCallback();
   }
 
+  /**
+   * Custom element reaction for when the element is disconnected from the DOM.
+   */
   disconnectedCallback() {
     this.removeEventListener('blur', this._blurHandler, true);
     this.addEventListener('submit', this._submitHandler, false);
   }
 
+  /**
+   * Getter for a list of fields/form controls.
+   * These can be either straight up HTML form fields OR
+   * custom controls.
+   * @return {Array} - A list of fields, custom or native.
+   */
   get _fields() {
-    if (!this._form) {
-      return [];
-    }
-    return Array.prototype.slice.call(this._form.elements).map((field)=> {
+    return Array.from(this._form.elements).map((field)=> {
       if (this._customControls.has(field)) {
         return this._customControls.get(field);
       } else {
@@ -43,11 +80,19 @@ export default class extends HTMLElement {
       }
     });
   }
-
+  /**
+   * Determines if the submit event of the <form> should be prevented after
+   * processing validation.
+   * @return {Boolean}
+   */
   get _disableSubmit() {
     return false;
   }
 
+  /**
+   * List of validityTypes, as defined in the HTML5 standard.
+   * @return {Array} - The list of strings of validity types.
+   */
   get _validityTypes() {
     return [
       "valueMissing",
@@ -61,29 +106,56 @@ export default class extends HTMLElement {
       "rangeUnderflow",
     ]
   }
-
+  /**
+   * Some input types should be ignored by default.
+   * @return {array} - Array of ignored input types.
+   */
   get _ignoredTypes() {
     return ['field', 'submit', 'button', 'reset'];
   }
-
+  /**
+   * Class name for error messages.
+   * @return {String} - class name.
+   */
   get _errorClass() {
     return 'error-message';
   }
-
+  /**
+   * Class name for fields in invalid state.
+   * @return {String} - class name
+   */
   get _fieldErrorClass() {
     return 'error';
   }
+  /**
+   * Class name for labels associated with fields in error state.
+   * @return {String} - class name.
+   */
+  get _labelErrorClass() {
+    return this._fieldErrorClass;
+  }
 
-  
+  /**
+   * Handler for when custom child controls send and event for registering as
+   * part of the form.
+   * @param  {Event} event - the custom event triggered.
+   */
   _onregisterCustomControl(event) {
     // Set the field as the key in the custom controls map, with the field as value.
-    this._customControls.set(event.detail.field, event.target);
+    this._customControls.set(event.target._field, event.target);
     // Tell the custom control which form it now belongs to:
     event.target._setCustomForm(this);
+    // Stop the event from bubbling further.
     event.stopPropagation();
   }
 
-  _determineMessage(field, validityType, customMessages) {
+  /**
+   * Figures out what the error message is for a particular form control.
+   * @param  {Element} field - the HTML native form field or custom form control.
+   * @param  {String} validityType - the validityType string, usually from native API.
+   * @return {String} - the error message
+   */
+  _determineMessage(field, validityType) {
     function getProp(field, propname) {
       if (propname in field) {
         return field[propname];
@@ -131,35 +203,84 @@ export default class extends HTMLElement {
     }
     return field.validationMessage || messages[validityType];
   }
-
+  /**
+   * Placeholder callback after successful validation, to override
+   * when extending.
+   * @param  {Element} form - The <form> itself.
+   * @param  {Array} fields - An array of fields.
+   */
   _onSubmit(form, fields) {
-    // placeholder, to override when extending.
-  }
-  _beforeShowError(field) {
-    // placeholder, to override when extending. 
-  }
-  _afterShowError(field) {
-    // placeholder, to override when extending.
+
   }
 
-  _beforeRemoveError(field) {
-    // placeholder, to override when extending.
+  /**
+   * Gets the <label> element of a native form field.
+   * @param  {Element} field - the native HTML form field
+   * @return {(Element|null)} - The <label> element of the element, or null if none exists.
+   */
+  _getFieldLabel(field) {
+    return this.querySelector(`label[for="${field.id}"]`) || field.closest('label');
   }
 
-  _afterRemoveError(field) {
-    // placeholder, to override when extending.
-  }
 
+  /**
+   * Creates an error element based on the field and message.
+   * @param  {Element} field - The html form field
+   * @param  {string} error - The error message
+   * @return {Element} - The constructed error message element.
+   */
+  _createError(field, error) {
+    // Get field id or name
+    let id = field.id || field.name;
+    if (!id) {
+      return;
+    }
+
+    // Check if error message field already exists
+    // If not, create one
+    let message = this.querySelector(`.#error-for-${id}`);
+    if (!message) {
+      message = document.createElement('div');
+      message.className = this._errorClass;
+      message.id = 'error-for-' + id;
+
+      // If the field is a radio button or checkbox, insert error after the label
+      let label = this._getFieldLabel(field);
+      if (label && (field.type === 'radio' || field.type ==='checkbox')) {
+        label.parentElement.insertBefore( message, label.nextElementSibling );
+      } else {
+        field.parentElement.insertBefore( message, field.nextElementSibling );
+      }
+      label.classList.add(this._labelErrorClass);
+    }
+
+    // Add ARIA role to the field
+    field.setAttribute('aria-describedby', 'error-for-' + id);
+
+    // Update error message
+    message.innerHTML = error;
+
+    return message;
+  }
+  /**
+   * Reveal the error message, i.e. making it (re-)render in the DOM.
+   * @param  {Element} errorMessage - The error message DOM element.
+   */
+  _revealErrorMessage(errorMessage) {
+    message.style.display = 'block';
+    message.style.visibility = 'visible';
+  }
+  /**
+   * Initiate the chain of events that end up showing a certain error message.
+   * @param  {Element} field - The HTML form field that the error pertains to.
+   * @param  {String} error - The error message
+   */
   _showError(field, error) {
-
     // If this is a custom field, delegate to the custom method.
     if (typeof field._showError === 'function') {
       field._showError(error);
       return;
     }
-
-    // Before show error callback
-    this._beforeShowError(field, error);
 
     // Add error class to field
     field.classList.add(this._fieldErrorClass);
@@ -174,58 +295,19 @@ export default class extends HTMLElement {
         item.classList.add(this._fieldErrorClass);
       });
     }
-
-    // Get field id or name
-    var id = field.id || field.name;
-    if (!id) {
-      return;
-    }
-
-    // Check if error message field already exists
-    // If not, create one
-    var message = this.querySelector(`.${this._errorClass}#error-for-${id}`);
-    if (!message) {
-      message = document.createElement('div');
-      message.className = this._errorClass;
-      message.id = 'error-for-' + id;
-
-      // If the field is a radio button or checkbox, insert error after the label
-      var label;
-      if (field.type === 'radio' || field.type ==='checkbox') {
-        label = this.querySelector(`label[for="${id}"]`) || field.closest('label');
-        if (label) {
-          label.parentElement.insertBefore( message, label.nextElementSibling );
-        }
-      }
-
-      // Otherwise, insert it after the field
-      if (!label) {
-        field.parentElement.insertBefore( message, field.nextElementSibling );
-      }
-    }
-
-    // Add ARIA role to the field
-    field.setAttribute('aria-describedby', 'error-for-' + id);
-
-    // Update error message
-    message.innerHTML = error;
-
-    // Show error message
-    message.style.display = 'block';
-    message.style.visibility = 'visible';
-
-    // After show error callback
-    this._afterShowError(field, error);
+    this._revealErrorMessage(this._createErrorMessage(field, error));
   }
 
+  /**
+   * Remove all traces of the error message / state from a field.
+   * @param  {Element} field - The HTML form field in question.
+   */
   _removeError(field) {
     // If this is a custom field, delegate to the custom method.
     if (typeof field._removeError === 'function') {
       field._removeError(field);
       return;
     }
-    // Before remove error callback
-    this._beforeRemoveError(field);
 
     // Remove ARIA role from the field
     field.removeAttribute('aria-describedby');
@@ -233,9 +315,14 @@ export default class extends HTMLElement {
     // Remove error class to field
     field.classList.remove(this._fieldErrorClass);
 
+    let label = this._getFieldLabel(field);
+    if (label) {
+      label.classList.remove(this._labelErrorClass);
+    }
+
     // If the field is a radio button and part of a group, remove error from all and get the last item in the group
     if (field.type === 'radio' && field.name) {
-      var group = Array.protype.slice.call(document.getElementsByName(field.name));
+      var group = Array.from(document.getElementsByName(field.name));
       group.forEach((item) => {
         if (item.form !== this._form) {
           return; // Only check fields in current form
@@ -260,16 +347,16 @@ export default class extends HTMLElement {
     message.innerHTML = '';
     message.style.display = 'none';
     message.style.visibility = 'hidden';
-
-    // After remove error callback
-    this._afterRemoveError(field);
   }
 
+  /** 
+   * Some types of fields should be ignored in terms of validity:
+   * 1. Disabled form controls
+   * 2. Descendants of disabled fieldsets
+   * 3. Particular field types
+   */ 
   _shouldNotValidate(field) {
-    // Some types of fields should be ignored in terms of validity:
-    // 1. Disabled form controls
-    // 2. Descendants of disabled fieldsets
-    // 3. Particular field types
+    
     if (field.disabled || // 1
         field.closest('fieldset[disabled]') || // 2
         this._ignoredTypes.indexOf(field.type) > -1 // 3
@@ -278,7 +365,36 @@ export default class extends HTMLElement {
     }
   }
 
-  _hasError(field, customMessages) {
+  /**
+   * Getter for the active button, after a submission is made.
+   * @return {(Element|null)} - The element, or null if missing.
+   */
+  get _submissionButton() {
+    let activeElement = document.activeElement;
+    if (activeElement && activeElement.form === this._form) {
+      return activeElement;
+    }
+    return null;
+  }
+
+  /**
+   * Check if the form was submitted by a button with `formnovalidate` set.
+   * @returns { boolean } - If the submit field had formnovalidate set.
+   */
+  _submittedWithFormnovalidate() {
+    let submitBtn = this._submissionButton;
+    if (submitBtn && submitBtn.hasAttribute('formnovalidate')) {
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * Validates a field and returns its error message if invalid.
+   * @param  {Element}  field - the html form field or custom control element.
+   * @return {(String|void)} - String if invalid, void else.
+   */
+  _hasError(field) {
     // Check if this field should be excluded from validation.
     if (this._shouldNotValidate(field)) {
       return;
@@ -290,7 +406,10 @@ export default class extends HTMLElement {
     if (validity.valid) {
       return;
     }
-    let validityTypes = field._validityTypes || this._validityTypes;
+    let validityTypes = this._validityTypes;
+    if (field._validityTypes && field._validityTypes.length > 0) {
+      validityTypes = field._validityTypes;
+    }
 
     for (var type of validityTypes) {
       if (validity[type] === true) {
@@ -300,9 +419,16 @@ export default class extends HTMLElement {
 
     return this._determineMessage(field, 'generic');
   }
+
+  /**
+   * Event handler for when a field is blurred. Validates the field in isolation.
+   * @param  {Event} event - the event object
+   */
   _blurHandler(event) {
+    // By default, field is the blur target element.
     var field = event.target;
 
+    // Check the custom controls map, replace field var with custom element out if so.
     if (this._customControls.has(field)) {
       field = this._customControls.get(field);
     }
@@ -320,7 +446,15 @@ export default class extends HTMLElement {
     this._removeError(field);
   }
 
+  /**
+   * Listen to the submit event of the HTMLFormElement inside the custom form
+   * validate all fields at that time, focus the first invalid field
+   * @param  {Event} event - The submit event object.
+   */
   _submitHandler(event) {
+    if (this._submittedWithFormnovalidate()) {
+      return;
+    }
     this._hasErrors = [];
     this._fields.forEach((field) => {
       var error = this._hasError(field);
@@ -335,7 +469,8 @@ export default class extends HTMLElement {
     }
     // If there are errors, focus on first element with error
     if (this._hasErrors.length > 0) {
-      this._hasErrors[0].focus();
+      let focus = ('focus' in this._hasErrors[0])? 'focus': '_focus';
+      this._hasErrors[0][focus]();
       return;
     }
     this._onSubmit(this._form, this._fields);
