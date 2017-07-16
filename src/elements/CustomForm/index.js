@@ -47,7 +47,8 @@ export default class extends HTMLElement {
     this.addEventListener('submit', this._submitHandler, false);
 
     // Listen for custom element children registering as custom controls.
-    this.addEventListener('dashform:registercontrol', this._onregisterCustomControl.bind(this), false);
+    this.addEventListener('customdashform:registercontrol',
+      this._onregisterCustomControl.bind(this), false);
   }
 
   /**
@@ -132,7 +133,7 @@ export default class extends HTMLElement {
    * @return {String} - class name.
    */
   get _labelErrorClass() {
-    return this._fieldErrorClass;
+    return `${this._fieldErrorClass}-label`;
   }
 
   /**
@@ -229,7 +230,7 @@ export default class extends HTMLElement {
    * @param  {string} error - The error message
    * @return {Element} - The constructed error message element.
    */
-  _createError(field, error) {
+  _createErrorMessage(field, error) {
     // Get field id or name
     let id = field.id || field.name;
     if (!id) {
@@ -238,7 +239,7 @@ export default class extends HTMLElement {
 
     // Check if error message field already exists
     // If not, create one
-    let message = this.querySelector(`.#error-for-${id}`);
+    let message = this.querySelector(`#error-for-${id}`);
     if (!message) {
       message = document.createElement('div');
       message.className = this._errorClass;
@@ -251,7 +252,9 @@ export default class extends HTMLElement {
       } else {
         field.parentElement.insertBefore( message, field.nextElementSibling );
       }
-      label.classList.add(this._labelErrorClass);
+      if (label) {
+        label.classList.add(this._labelErrorClass);
+      }
     }
 
     // Add ARIA role to the field
@@ -264,9 +267,9 @@ export default class extends HTMLElement {
   }
   /**
    * Reveal the error message, i.e. making it (re-)render in the DOM.
-   * @param  {Element} errorMessage - The error message DOM element.
+   * @param  {Element} message - The error message DOM element.
    */
-  _revealErrorMessage(errorMessage) {
+  _revealErrorMessage(message) {
     message.style.display = 'block';
     message.style.visibility = 'visible';
   }
@@ -295,7 +298,10 @@ export default class extends HTMLElement {
         item.classList.add(this._fieldErrorClass);
       });
     }
-    this._revealErrorMessage(this._createErrorMessage(field, error));
+    let errorMessage = this._createErrorMessage(field, error);
+    if (errorMessage) {
+      this._revealErrorMessage(errorMessage);
+    }
   }
 
   /**
@@ -400,7 +406,7 @@ export default class extends HTMLElement {
       return;
     }
     // cache a reference to validityState (or custom getter thereof).
-    let validity = field.validity || field._getValidity();
+    let validity = field.validity || field._validity;
 
     // field is valid, return:
     if (validity.valid) {
