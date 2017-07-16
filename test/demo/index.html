@@ -110,6 +110,21 @@
         <input type="number" required min="0" max="10" step="2" value="3" id="custom-field-number">
       </custom-formcontrol>
 
+      <fieldset>
+        
+        <custom-formcontrol class="form-control">
+          <label for="custom-text-disabled-fieldset">This should not be validated while disabled.</label>
+          <input type="text" id="custom-text-disabled-fieldset" disabled required>
+        </custom-formcontrol>
+
+        <div class="form-control">
+          <label>
+            <input type="checkbox" id="checkbox-disabled-fieldset"> This neither.
+          </label>
+        </div>
+
+      </fieldset>
+
       <button type="submit">Send</button>
       <button type="submit" formnovalidate>Send without validation</button>
     </form>
