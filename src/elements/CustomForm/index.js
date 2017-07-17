@@ -406,32 +406,44 @@ export default class extends HTMLElement {
   /**
    * Validates a field and returns its error message if invalid.
    * @param  {Element}  field - the html form field or custom control element.
-   * @return {(String|void)} - String if invalid, void else.
+   * @return {Promise} - Returns a Promise, which resolves with either [field, message] or false.
    */
   _hasError(field) {
-    // Check if this field should be excluded from validation.
-    if (this._shouldNotValidate(field)) {
-      return;
+    field.dataset.pendingvalidation = true;
+    // check if the field has a completely custom validator:
+    if (field._isAsync && ('_asyncHasError' in field)) {
+      // Note: this method MUST return a promise.
+      return field._asyncHasError();
     }
-    // cache a reference to validityState (or custom getter thereof).
-    let validity = field.validity || field._validity;
-
-    // field is valid, return:
-    if (validity.valid) {
-      return;
-    }
-    let validityTypes = this._validityTypes;
-    if (field._validityTypes && field._validityTypes.length > 0) {
-      validityTypes = field._validityTypes;
-    }
-
-    for (var type of validityTypes) {
-      if (validity[type] === true) {
-        return this._determineMessage(field, type);
+    return new Promise((resolve, reject) => {
+      // Check if this field should be excluded from validation.
+      if (this._shouldNotValidate(field)) {
+        field.dataset.pendingvalidation = false;
+        return resolve(false);
       }
-    }
 
-    return this._determineMessage(field, 'generic');
+      // cache a reference to validityState (or custom getter thereof).
+      let validity = field.validity || field._validity;
+
+      // field is valid, return:
+      if (validity.valid) {
+        return resolve(false);
+      }
+
+      // Ok, now we are sure that the field is invalid.
+      // Check how it is invalid.
+      let validityTypes = this._validityTypes;
+      if (field._validityTypes && field._validityTypes.length > 0) {
+        validityTypes = field._validityTypes;
+      }
+
+      for (var type of validityTypes) {
+        if (validity[type] === true) {
+          return resolve([field, this._determineMessage(field, type)]);
+        }
+      }
+      return resolve([field, this._determineMessage(field, 'generic')]);
+    });
   }
 
   /**
@@ -448,16 +460,27 @@ export default class extends HTMLElement {
     }
 
     // Validate the field
-    var error = this._hasError(field);
-
-    // If there's an error, show it
-    if (error) {
-      this._showError(field, error);
-      return;
-    }
-
-    // Otherwise, remove any errors that exist
-    this._removeError(field);
+    var error = this._hasError(field).then(error => {
+      // No error, remove existing error messages and return.
+      if (!error) {
+        this._removeError(field);
+        return;
+      }
+      // If there's an error, show it
+      let [formField, message] = error;
+      this._showError(formField, message);
+    });
+  }
+  /**
+   * Validates all fields, normal and custom
+   * @return {Promise} - returns a Promise of all fields.
+   */
+  async _validateAll() {
+    const validations = this._fields.map(async (field) => {
+      const result = await this._hasError(field);
+      return result;
+    });
+    return await Promise.all(validations);
   }
 
   /**
@@ -466,27 +489,39 @@ export default class extends HTMLElement {
    * @param  {Event} event - The submit event object.
    */
   _submitHandler(event) {
+    
     if (this._submittedWithFormnovalidate()) {
       return;
     }
-    this._hasErrors = [];
-    this._fields.forEach((field) => {
-      var error = this._hasError(field);
-      if (error) {
-        this._showError(field, error);
-        this._hasErrors.push(field);
+    // We must prevent default, since the handler is async.
+    // Later, we re-submit if the form is all right.
+    event.preventDefault();
+    let fieldErrors = [];
+    // Validate all the fields
+    this._validateAll().then((errors)=>{
+      let fields = errors.forEach((error) => {
+        if (!error) {
+          return;
+        }
+        let [field, message] = error;
+        this._showError(field, message);
+        fieldErrors.push(field);
+      })
+      // If there are errors, focus on first element with error
+      if (fieldErrors.length > 0) {
+        let focus = ('focus' in fieldErrors[0])? 'focus': '_focus';
+        fieldErrors[0][focus]();
+        return;
+      } else {
+        if (this._disableSubmit) {
+          return this._onSubmit(form, this._fields);
+        }
+        this._form.submit();
       }
+      this._onSubmit(this._form, this._fields);
+    }).catch((error) => {
+      console.log(error);
     });
-    // Prevent form from submitting if there are errors or submission is disabled
-    if (this._hasErrors || this._disableSubmit) {
-      event.preventDefault();
-    }
-    // If there are errors, focus on first element with error
-    if (this._hasErrors.length > 0) {
-      let focus = ('focus' in this._hasErrors[0])? 'focus': '_focus';
-      this._hasErrors[0][focus]();
-      return;
-    }
-    this._onSubmit(this._form, this._fields);
+    
   }
 }

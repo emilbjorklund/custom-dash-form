@@ -948,7 +948,11 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -1351,56 +1355,71 @@ var _class = function (_HTMLElement) {
     /**
      * Validates a field and returns its error message if invalid.
      * @param  {Element}  field - the html form field or custom control element.
-     * @return {(String|void)} - String if invalid, void else.
+     * @return {Promise} - Returns a Promise, which resolves with either [field, message] or false.
      */
 
   }, {
     key: '_hasError',
     value: function _hasError(field) {
-      // Check if this field should be excluded from validation.
-      if (this._shouldNotValidate(field)) {
-        return;
+      var _this6 = this;
+
+      field.dataset.pendingvalidation = true;
+      // check if the field has a completely custom validator:
+      if (field._isAsync && '_asyncHasError' in field) {
+        // Note: this method MUST return a promise.
+        return field._asyncHasError();
       }
-      // cache a reference to validityState (or custom getter thereof).
-      var validity = field.validity || field._validity;
-
-      // field is valid, return:
-      if (validity.valid) {
-        return;
-      }
-      var validityTypes = this._validityTypes;
-      if (field._validityTypes && field._validityTypes.length > 0) {
-        validityTypes = field._validityTypes;
-      }
-
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
-
-      try {
-        for (var _iterator = validityTypes[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var type = _step.value;
-
-          if (validity[type] === true) {
-            return this._determineMessage(field, type);
-          }
+      return new Promise(function (resolve, reject) {
+        // Check if this field should be excluded from validation.
+        if (_this6._shouldNotValidate(field)) {
+          field.dataset.pendingvalidation = false;
+          return resolve(false);
         }
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
+
+        // cache a reference to validityState (or custom getter thereof).
+        var validity = field.validity || field._validity;
+
+        // field is valid, return:
+        if (validity.valid) {
+          return resolve(false);
+        }
+
+        // Ok, now we are sure that the field is invalid.
+        // Check how it is invalid.
+        var validityTypes = _this6._validityTypes;
+        if (field._validityTypes && field._validityTypes.length > 0) {
+          validityTypes = field._validityTypes;
+        }
+
+        var _iteratorNormalCompletion = true;
+        var _didIteratorError = false;
+        var _iteratorError = undefined;
+
         try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
+          for (var _iterator = validityTypes[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            var type = _step.value;
+
+            if (validity[type] === true) {
+              return resolve([field, _this6._determineMessage(field, type)]);
+            }
           }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
         } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
+          try {
+            if (!_iteratorNormalCompletion && _iterator.return) {
+              _iterator.return();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
           }
         }
-      }
 
-      return this._determineMessage(field, 'generic');
+        return resolve([field, _this6._determineMessage(field, 'generic')]);
+      });
     }
 
     /**
@@ -1411,6 +1430,8 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_blurHandler',
     value: function _blurHandler(event) {
+      var _this7 = this;
+
       // By default, field is the blur target element.
       var field = event.target;
 
@@ -1420,17 +1441,83 @@ var _class = function (_HTMLElement) {
       }
 
       // Validate the field
-      var error = this._hasError(field);
+      var error = this._hasError(field).then(function (error) {
+        // No error, remove existing error messages and return.
+        if (!error) {
+          _this7._removeError(field);
+          return;
+        }
+        // If there's an error, show it
 
-      // If there's an error, show it
-      if (error) {
-        this._showError(field, error);
-        return;
+        var _error = _slicedToArray(error, 2),
+            formField = _error[0],
+            message = _error[1];
+
+        _this7._showError(formField, message);
+      });
+    }
+    /**
+     * Validates all fields, normal and custom
+     * @return {Promise} - returns a Promise of all fields.
+     */
+
+  }, {
+    key: '_validateAll',
+    value: function () {
+      var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee2() {
+        var _this8 = this;
+
+        var validations;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                validations = this._fields.map(function () {
+                  var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee(field) {
+                    var result;
+                    return regeneratorRuntime.wrap(function _callee$(_context) {
+                      while (1) {
+                        switch (_context.prev = _context.next) {
+                          case 0:
+                            _context.next = 2;
+                            return _this8._hasError(field);
+
+                          case 2:
+                            result = _context.sent;
+                            return _context.abrupt('return', result);
+
+                          case 4:
+                          case 'end':
+                            return _context.stop();
+                        }
+                      }
+                    }, _callee, _this8);
+                  }));
+
+                  return function (_x) {
+                    return _ref2.apply(this, arguments);
+                  };
+                }());
+                _context2.next = 3;
+                return Promise.all(validations);
+
+              case 3:
+                return _context2.abrupt('return', _context2.sent);
+
+              case 4:
+              case 'end':
+                return _context2.stop();
+            }
+          }
+        }, _callee2, this);
+      }));
+
+      function _validateAll() {
+        return _ref.apply(this, arguments);
       }
 
-      // Otherwise, remove any errors that exist
-      this._removeError(field);
-    }
+      return _validateAll;
+    }()
 
     /**
      * Listen to the submit event of the HTMLFormElement inside the custom form
@@ -1441,39 +1528,53 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_submitHandler',
     value: function _submitHandler(event) {
-      var _this6 = this;
+      var _this9 = this;
 
       if (this._submittedWithFormnovalidate()) {
         return;
       }
-      this._hasErrors = [];
-      this._fields.forEach(function (field) {
-        var error = _this6._hasError(field);
-        if (error) {
-          _this6._showError(field, error);
-          _this6._hasErrors.push(field);
+      // We must prevent default, since the handler is async.
+      // Later, we re-submit if the form is all right.
+      event.preventDefault();
+      var fieldErrors = [];
+      // Validate all the fields
+      this._validateAll().then(function (errors) {
+        var fields = errors.forEach(function (error) {
+          if (!error) {
+            return;
+          }
+
+          var _error2 = _slicedToArray(error, 2),
+              field = _error2[0],
+              message = _error2[1];
+
+          _this9._showError(field, message);
+          fieldErrors.push(field);
+        });
+        // If there are errors, focus on first element with error
+        if (fieldErrors.length > 0) {
+          var focus = 'focus' in fieldErrors[0] ? 'focus' : '_focus';
+          fieldErrors[0][focus]();
+          return;
+        } else {
+          if (_this9._disableSubmit) {
+            return _this9._onSubmit(form, _this9._fields);
+          }
+          _this9._form.submit();
         }
+        _this9._onSubmit(_this9._form, _this9._fields);
+      }).catch(function (error) {
+        console.log(error);
       });
-      // Prevent form from submitting if there are errors or submission is disabled
-      if (this._hasErrors || this._disableSubmit) {
-        event.preventDefault();
-      }
-      // If there are errors, focus on first element with error
-      if (this._hasErrors.length > 0) {
-        var focus = 'focus' in this._hasErrors[0] ? 'focus' : '_focus';
-        this._hasErrors[0][focus]();
-        return;
-      }
-      this._onSubmit(this._form, this._fields);
     }
   }, {
     key: '_fields',
     get: function get() {
-      var _this7 = this;
+      var _this10 = this;
 
       return Array.from(this._form.elements).map(function (field) {
-        if (_this7._customControls.has(field)) {
-          return _this7._customControls.get(field);
+        if (_this10._customControls.has(field)) {
+          return _this10._customControls.get(field);
         } else {
           return field;
         }
@@ -1659,12 +1760,21 @@ var _class = function (_HTMLElement) {
       this._isInitialized = true;
     }
     /**
-     * Getter for the field validity of the field inside this control wrapper.
-     * @return {Object} Validity Object
+     * Flag for async field - default implementation checks for `async` attribute.
+     * @return {Boolean} - true if attribute async is present on custom element.
      */
 
   }, {
-    key: '_getCustomMessage',
+    key: '_asyncHasError',
+    value: function _asyncHasError() {
+      var _this4 = this;
+
+      return new Promise(function (resolve, reject) {
+        window.setTimeout(function () {
+          resolve([_this4, 'Async!']);
+        }, 1000);
+      });
+    }
 
     /**
      * Get a custom validation message for this form control. This implementation
@@ -1675,6 +1785,9 @@ var _class = function (_HTMLElement) {
      * @param  {String} validityType The validityType key as string.
      * @return {String}              The validation message, or empty string.
      */
+
+  }, {
+    key: '_getCustomMessage',
     value: function _getCustomMessage(validityType) {
       var attrName = validityType.toLowerCase();
       if (this.hasAttribute(attrName)) {
@@ -1751,6 +1864,17 @@ var _class = function (_HTMLElement) {
     value: function _setCustomForm(element) {
       this._customForm = element;
     }
+  }, {
+    key: '_isAsync',
+    get: function get() {
+      return this.hasAttribute('async');
+    }
+
+    /**
+     * Getter for the field validity of the field inside this control wrapper.
+     * @return {Object} Validity Object
+     */
+
   }, {
     key: '_validity',
     get: function get() {

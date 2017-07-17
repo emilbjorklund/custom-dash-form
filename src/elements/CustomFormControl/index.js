@@ -63,6 +63,14 @@ export default class extends HTMLElement {
     this._isInitialized = true;
   }
   /**
+   * Flag for async field - default implementation checks for `async` attribute.
+   * @return {Boolean} - true if attribute async is present on custom element.
+   */
+  get _isAsync() {
+    return this.hasAttribute('async');
+  }
+
+  /**
    * Getter for the field validity of the field inside this control wrapper.
    * @return {Object} Validity Object
    */
@@ -109,6 +117,15 @@ export default class extends HTMLElement {
   get _validityTypes() {
     return [];
   }
+
+  _asyncHasError() {
+    return new Promise((resolve, reject) => {
+      window.setTimeout(() => {
+        resolve([this, 'Async!']);
+      }, 1000);
+    });
+  }
+
   /**
    * Get a custom validation message for this form control. This implementation
    * takes the validityType string, lowercases it and checks the custom element
