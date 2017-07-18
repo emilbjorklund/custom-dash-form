@@ -60,22 +60,22 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 120);
+/******/ 	return __webpack_require__(__webpack_require__.s = 304);
 /******/ })
 /************************************************************************/
 /******/ ({
 
-/***/ 120:
+/***/ 304:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var _CustomForm = __webpack_require__(50);
+var _CustomForm = __webpack_require__(86);
 
 var _CustomForm2 = _interopRequireDefault(_CustomForm);
 
-var _CustomFormControl = __webpack_require__(51);
+var _CustomFormControl = __webpack_require__(87);
 
 var _CustomFormControl2 = _interopRequireDefault(_CustomFormControl);
 
@@ -83,7 +83,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 /***/ }),
 
-/***/ 50:
+/***/ 86:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -496,6 +496,17 @@ var _class = function (_HTMLElement) {
       }
       return false;
     }
+  }, {
+    key: '_getValidity',
+    value: function _getValidity(field) {
+      // Custom validity - must return a Promise
+      if ('_validity' in field) {
+        return field._validity;
+      }
+      return new Promise(function (resolve) {
+        return resolve(field.validity);
+      });
+    }
 
     /**
      * Validates a field and returns its error message if invalid.
@@ -509,61 +520,56 @@ var _class = function (_HTMLElement) {
       var _this6 = this;
 
       field.dataset.pendingvalidation = true;
-      // check if the field has a completely custom validator:
-      if (field._isAsync && '_asyncHasError' in field) {
-        // Note: this method MUST return a promise.
-        return field._asyncHasError();
-      }
+
       return new Promise(function (resolve, reject) {
         // Check if this field should be excluded from validation.
         if (_this6._shouldNotValidate(field)) {
           field.dataset.pendingvalidation = false;
           return resolve(false);
         }
-
-        // cache a reference to validityState (or custom getter thereof).
-        var validity = field.validity || field._validity;
-
-        // field is valid, return:
-        if (validity.valid) {
-          return resolve(false);
-        }
-
-        // Ok, now we are sure that the field is invalid.
-        // Check how it is invalid.
-        var validityTypes = _this6._validityTypes;
-        if (field._validityTypes && field._validityTypes.length > 0) {
-          validityTypes = field._validityTypes;
-        }
-
-        var _iteratorNormalCompletion = true;
-        var _didIteratorError = false;
-        var _iteratorError = undefined;
-
-        try {
-          for (var _iterator = validityTypes[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-            var type = _step.value;
-
-            if (validity[type] === true) {
-              return resolve([field, _this6._determineMessage(field, type)]);
-            }
+        _this6._getValidity(field).then(function (validity) {
+          field.dataset.pendingvalidation = false;
+          // field is valid, return:
+          if (validity.valid) {
+            return resolve(false);
           }
-        } catch (err) {
-          _didIteratorError = true;
-          _iteratorError = err;
-        } finally {
+
+          // Ok, now we are sure that the field is invalid.
+          // Check how it is invalid.
+          var validityTypes = _this6._validityTypes;
+          if (field._validityTypes && field._validityTypes.length > 0) {
+            validityTypes = field._validityTypes;
+          }
+
+          var _iteratorNormalCompletion = true;
+          var _didIteratorError = false;
+          var _iteratorError = undefined;
+
           try {
-            if (!_iteratorNormalCompletion && _iterator.return) {
-              _iterator.return();
+            for (var _iterator = validityTypes[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+              var type = _step.value;
+
+              if (validity[type] === true) {
+                return resolve([field, _this6._determineMessage(field, type)]);
+              }
             }
+          } catch (err) {
+            _didIteratorError = true;
+            _iteratorError = err;
           } finally {
-            if (_didIteratorError) {
-              throw _iteratorError;
+            try {
+              if (!_iteratorNormalCompletion && _iterator.return) {
+                _iterator.return();
+              }
+            } finally {
+              if (_didIteratorError) {
+                throw _iteratorError;
+              }
             }
           }
-        }
 
-        return resolve([field, _this6._determineMessage(field, 'generic')]);
+          return resolve([field, _this6._determineMessage(field, 'generic')]);
+        });
       });
     }
 
@@ -805,7 +811,7 @@ exports.default = _class;
 
 /***/ }),
 
-/***/ 51:
+/***/ 87:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -859,12 +865,8 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
  * error messages, you can override the method for getting the custom error message
  * which then looks up the validityType in an object.
  *
- * Another example is if you build a wholly custom validation, which should then
- * override the `_validity` getter (and other methods you need to override.)
- *
- * By default, the `_validity` getter just delegates to the native validation,
- * via the parent CustomForm.
- * @extends HTMLElement
+ * Another example is if you build a completely custom validation, which should then
+ * override the `_validity` getter (and other methods you need to override).
  */
 var _class = function (_HTMLElement) {
   _inherits(_class, _HTMLElement);
@@ -911,16 +913,8 @@ var _class = function (_HTMLElement) {
      */
 
   }, {
-    key: '_asyncHasError',
-    value: function _asyncHasError() {
-      var _this4 = this;
+    key: '_getCustomMessage',
 
-      return new Promise(function (resolve, reject) {
-        window.setTimeout(function () {
-          resolve([_this4, 'Async!']);
-        }, 1000);
-      });
-    }
 
     /**
      * Get a custom validation message for this form control. This implementation
@@ -931,9 +925,6 @@ var _class = function (_HTMLElement) {
      * @param  {String} validityType The validityType key as string.
      * @return {String}              The validation message, or empty string.
      */
-
-  }, {
-    key: '_getCustomMessage',
     value: function _getCustomMessage(validityType) {
       var attrName = validityType.toLowerCase();
       if (this.hasAttribute(attrName)) {
@@ -1024,7 +1015,7 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_validity',
     get: function get() {
-      return this._field.validity;
+      return Promise.resolve(this._field.validity);
     }
 
     /**
