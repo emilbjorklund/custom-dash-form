@@ -114,6 +114,14 @@ These will hopefully be only a few lines of code.
 Mostly, this depends on a rewrite of the validation procedures to be fully async
 which is currently in the works.
 
+## File sizes
+
+The custom element for the form itself is probably around 5Kb or so when minified 
+and gzipped, so it's not massive. With all polyfills, it tends to be… scary.
+
+That said, at some point, quite a few less polyfills are needed, at which point this
+will be a very small library indeed, even with a whole bunch of custom fields.
+
 Ta!
 
 
