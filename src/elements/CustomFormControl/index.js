@@ -35,12 +35,8 @@
  * error messages, you can override the method for getting the custom error message
  * which then looks up the validityType in an object.
  *
- * Another example is if you build a wholly custom validation, which should then
- * override the `_validity` getter (and other methods you need to override.)
- *
- * By default, the `_validity` getter just delegates to the native validation,
- * via the parent CustomForm.
- * @extends HTMLElement
+ * Another example is if you build a completely custom validation, which should then
+ * override the `_validity` getter (and other methods you need to override).
  */
 export default class extends HTMLElement {
   connectedCallback() {
@@ -75,7 +71,7 @@ export default class extends HTMLElement {
    * @return {Object} Validity Object
    */
   get _validity() {
-    return this._field.validity;
+    return Promise.resolve(this._field.validity);
   }
 
   /**
@@ -116,14 +112,6 @@ export default class extends HTMLElement {
    */
   get _validityTypes() {
     return [];
-  }
-
-  _asyncHasError() {
-    return new Promise((resolve, reject) => {
-      window.setTimeout(() => {
-        resolve([this, 'Async!']);
-      }, 1000);
-    });
   }
 
   /**

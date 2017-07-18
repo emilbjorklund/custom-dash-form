@@ -418,6 +418,14 @@ export default class extends HTMLElement {
     }
     return false;
   }
+
+  _getValidity(field) {
+    // Custom validity - must return a Promise
+    if ('_validity' in field) {
+      return field._validity;
+    }
+    return new Promise(resolve => resolve(field.validity));
+  }
   
   /**
    * Validates a field and returns its error message if invalid.
@@ -426,39 +434,34 @@ export default class extends HTMLElement {
    */
   _hasError(field) {
     field.dataset.pendingvalidation = true;
-    // check if the field has a completely custom validator:
-    if (field._isAsync && ('_asyncHasError' in field)) {
-      // Note: this method MUST return a promise.
-      return field._asyncHasError();
-    }
+
     return new Promise((resolve, reject) => {
       // Check if this field should be excluded from validation.
       if (this._shouldNotValidate(field)) {
         field.dataset.pendingvalidation = false;
         return resolve(false);
       }
-
-      // cache a reference to validityState (or custom getter thereof).
-      let validity = field.validity || field._validity;
-
-      // field is valid, return:
-      if (validity.valid) {
-        return resolve(false);
-      }
-
-      // Ok, now we are sure that the field is invalid.
-      // Check how it is invalid.
-      let validityTypes = this._validityTypes;
-      if (field._validityTypes && field._validityTypes.length > 0) {
-        validityTypes = field._validityTypes;
-      }
-
-      for (var type of validityTypes) {
-        if (validity[type] === true) {
-          return resolve([field, this._determineMessage(field, type)]);
+      this._getValidity(field).then((validity) => {
+        field.dataset.pendingvalidation = false;
+        // field is valid, return:
+        if (validity.valid) {
+          return resolve(false);
         }
-      }
-      return resolve([field, this._determineMessage(field, 'generic')]);
+
+        // Ok, now we are sure that the field is invalid.
+        // Check how it is invalid.
+        let validityTypes = this._validityTypes;
+        if (field._validityTypes && field._validityTypes.length > 0) {
+          validityTypes = field._validityTypes;
+        }
+
+        for (var type of validityTypes) {
+          if (validity[type] === true) {
+            return resolve([field, this._determineMessage(field, type)]);
+          }
+        }
+        return resolve([field, this._determineMessage(field, 'generic')]);
+      });
     });
   }
 
