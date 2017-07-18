@@ -157,6 +157,37 @@ export default class extends HTMLElement {
     event.stopPropagation();
   }
 
+  _getFieldProp(field, propname) {
+    if (propname in field) {
+      return field[propname];
+    }
+    if (field._field) {
+      return field._field[propname];
+    }
+    return 0;
+  }
+
+  get _useCustomMessages() {
+    return false;
+  }
+
+  _getCustomMessage(field, validityType) {
+    var messages = {
+      valueMissing: 'Please fill out this field.',
+      typeMismatchEmail: 'Please enter an email address.',
+      typeMismatchUrl: 'Please enter a URL.',
+      tooShort: `Please lengthen this text to ${this._getFieldProp(field, 'minLength')} characters or more. You are currently using ${this._getFieldProp(field, 'value').length} characters.`,
+      tooLong: `Please shorten this text to no more than ${this._getFieldProp(field, 'maxLength')} characters. You are currently using ${this._getFieldProp(field, 'value').length} characters.`,
+      patternMismatch: 'Please match the requested format.',
+      badInput: 'Please enter a number.',
+      stepMismatch: 'Please select a valid value.',
+      rangeOverflow: `Please select a value that is no more than ${this._getFieldProp(field, 'max')}.`,
+      rangeUnderflow: `Please select a value that is no less than ${this._getFieldProp(field, 'min')}.`,
+      generic: 'The value you entered for this field is invalid.',
+    }
+    return messages[validityType];
+  }
+
   /**
    * Figures out what the error message is for a particular form control.
    * @param  {Element} field - the HTML native form field or custom form control.
@@ -165,32 +196,9 @@ export default class extends HTMLElement {
    */
   _determineMessage(field, validityType) {
     function getProp(field, propname) {
-      if (propname in field) {
-        return field[propname];
-      }
-      if (field._field) {
-        return field._field[propname];
-      }
+      
     }
-    var minLength = getProp(field, 'minLength');
-    var maxLength = getProp(field, 'maxLength');
-    var charLength = getProp(field, 'value').length;
-    var numMax = getProp(field, 'max');
-    var numMin = getProp(field, 'min');
-    var messages = {
-      // Messages
-      valueMissing: 'Please fill out this field.',
-      typeMismatchEmail: 'Please enter an email address.',
-      typeMismatchUrl: 'Please enter a URL.',
-      tooShort: `Please lengthen this text to ${minLength} characters or more. You are currently using ${charLength} characters.`,
-      tooLong: `Please shorten this text to no more than ${maxLength} characters. You are currently using ${charLength} characters.`,
-      patternMismatch: 'Please match the requested format.',
-      badInput: 'Please enter a number.',
-      stepMismatch: 'Please select a valid value.',
-      rangeOverflow: `Please select a value that is no more than ${numMax}.`,
-      rangeUnderflow: `Please select a value that is no less than ${numMin}.`,
-      generic: 'The value you entered for this field is invalid.',
-    }
+    
     // If this is a custom field implementing the _getCustomMessage method,
     // and that method returns something, let that be the error message.
     if (typeof field._getCustomMessage == 'function') {
@@ -199,17 +207,25 @@ export default class extends HTMLElement {
         return customMessage;
       }
     }
-    // Differentiate type mismatch messages
-    if (validityType === 'typeMismatch') {
-      let key = `${validityType}${field.type[0].toUpperCase()}${field.type.slice(1)}`
-      return messages[key];
+    // If this is an extended class where the flag for forcing custom messages
+    // is set, use the _getCustomMessage method directly.
+    if (this._useCustomMessages) {
+      // Differentiate type mismatch messages
+      if (validityType === 'typeMismatch') {
+        validityType = `${validityType}${field.type[0].toUpperCase()}${field.type.slice(1)}`;
+      }
+      return this._getCustomMessage(field, validityType);
     }
+    
     // The patternMismatch type allows for a custom message to be specified 
     // using the title attribute on the input itself.
     if (validityType === 'patternMismatch' && field.hasAttribute('title')) {
       return field.getAttribute('title');
     }
-    return field.validationMessage || messages[validityType];
+    // Finally, return the browser-determined error message, and only fall
+    // back to the custom messages if no message is returned (e.g. in a polyfilled
+    // situation).
+    return field.validationMessage || this._getCustomMessage(field, validityType);
   }
   /**
    * Placeholder callback after successful validation, to override
