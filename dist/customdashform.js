@@ -141,6 +141,9 @@ var _class = function (_HTMLElement) {
           return _this2._init();
         });
       }
+      // Start listening to changes in the child contents of the element:
+      this._mutationObserver = new MutationObserver(this._observeMutations.bind(this));
+      this._mutationObserver.observe(this, { childList: true });
     }
 
     /**
@@ -178,7 +181,49 @@ var _class = function (_HTMLElement) {
       this.addEventListener('submit', this._submitHandler, false);
 
       // Listen for custom element children registering as custom controls.
-      this.addEventListener('customdashform:registercontrol', this._onregisterCustomControl.bind(this), false);
+      this.addEventListener('customdashform:registercontrol', this._onregisterCustomControl, false);
+    }
+  }, {
+    key: '_observeMutations',
+    value: function _observeMutations(mutations) {
+      var _this4 = this;
+
+      mutations.forEach(function (mutation) {
+        var removed = Array.from(mutation.removedNodes),
+            added = Array.from(mutation.addedNodes);
+        // If the current form is removed, destroy.
+        if (removed.indexOf(_this4._form) > -1) {
+          _this4._destroy();
+        }
+        // If a new form is added, re-init then quit.
+        var _iteratorNormalCompletion = true;
+        var _didIteratorError = false;
+        var _iteratorError = undefined;
+
+        try {
+          for (var _iterator = added[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            var element = _step.value;
+
+            if (element.nodeName.toUpperCase() === 'FORM') {
+              _this4._init();
+              return;
+            }
+          }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion && _iterator.return) {
+              _iterator.return();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
+          }
+        }
+      });
     }
 
     /**
@@ -188,7 +233,10 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_destroy',
     value: function _destroy() {
-      this.disconnectedCallback();
+      this._isInitialized = false;
+      this.removeEventListener('blur', this._blurHandler, true);
+      this.removeEventListener('customdashform:registercontrol', this._onregisterCustomControl, false);
+      this.removeEventListener('submit', this._submitHandler, false);
     }
 
     /**
@@ -198,8 +246,8 @@ var _class = function (_HTMLElement) {
   }, {
     key: 'disconnectedCallback',
     value: function disconnectedCallback() {
-      this.removeEventListener('blur', this._blurHandler, true);
-      this.addEventListener('submit', this._submitHandler, false);
+      this.destroy();
+      this._mutationObserver.disconnect();
     }
 
     /**
@@ -370,7 +418,7 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_showError',
     value: function _showError(field, error) {
-      var _this4 = this;
+      var _this5 = this;
 
       // If this is a custom field, delegate to the custom method.
       if (typeof field._showError === 'function') {
@@ -385,10 +433,10 @@ var _class = function (_HTMLElement) {
       if (field.type === 'radio' && field.name) {
         var group = document.getElementsByName(field.name);
         group.forEach(function (item) {
-          if (item.form !== _this4._form) {
+          if (item.form !== _this5._form) {
             return; // Only check fields in current form
           }
-          item.classList.add(_this4._fieldErrorClass);
+          item.classList.add(_this5._fieldErrorClass);
         });
       }
       var errorMessage = this._createErrorMessage(field, error);
@@ -405,7 +453,7 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_removeError',
     value: function _removeError(field) {
-      var _this5 = this;
+      var _this6 = this;
 
       // If this is a custom field, delegate to the custom method.
       if (typeof field._removeError === 'function') {
@@ -428,10 +476,10 @@ var _class = function (_HTMLElement) {
       if (field.type === 'radio' && field.name) {
         var group = Array.from(document.getElementsByName(field.name));
         group.forEach(function (item) {
-          if (item.form !== _this5._form) {
+          if (item.form !== _this6._form) {
             return; // Only check fields in current form
           }
-          item.classList.remove(_this5._fieldErrorClass);
+          item.classList.remove(_this6._fieldErrorClass);
         });
       }
 
@@ -518,29 +566,29 @@ var _class = function (_HTMLElement) {
         validityTypes = field._validityTypes;
       }
 
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
+      var _iteratorNormalCompletion2 = true;
+      var _didIteratorError2 = false;
+      var _iteratorError2 = undefined;
 
       try {
-        for (var _iterator = validityTypes[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var type = _step.value;
+        for (var _iterator2 = validityTypes[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+          var type = _step2.value;
 
           if (validity[type] === true) {
             return this._determineMessage(field, type);
           }
         }
       } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
+        _didIteratorError2 = true;
+        _iteratorError2 = err;
       } finally {
         try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
+          if (!_iteratorNormalCompletion2 && _iterator2.return) {
+            _iterator2.return();
           }
         } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
+          if (_didIteratorError2) {
+            throw _iteratorError2;
           }
         }
       }
@@ -586,17 +634,17 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_submitHandler',
     value: function _submitHandler(event) {
-      var _this6 = this;
+      var _this7 = this;
 
       if (this._submittedWithFormnovalidate()) {
         return;
       }
       this._hasErrors = [];
       this._fields.forEach(function (field) {
-        var error = _this6._hasError(field);
+        var error = _this7._hasError(field);
         if (error) {
-          _this6._showError(field, error);
-          _this6._hasErrors.push(field);
+          _this7._showError(field, error);
+          _this7._hasErrors.push(field);
         }
       });
       // Prevent form from submitting if there are errors or submission is disabled
@@ -614,11 +662,11 @@ var _class = function (_HTMLElement) {
   }, {
     key: '_fields',
     get: function get() {
-      var _this7 = this;
+      var _this8 = this;
 
       return Array.from(this._form.elements).map(function (field) {
-        if (_this7._customControls.has(field)) {
-          return _this7._customControls.get(field);
+        if (_this8._customControls.has(field)) {
+          return _this8._customControls.get(field);
         } else {
           return field;
         }
