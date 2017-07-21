@@ -24,6 +24,9 @@ export default class extends HTMLElement {
     if (!this._isInitialized) {
       window.requestAnimationFrame(() => this._init());
     }
+    // Start listening to changes in the child contents of the element:
+    this._mutationObserver = new MutationObserver(this._observeMutations.bind(this));
+    this._mutationObserver.observe(this, {childList: true});
   }
 
   /**
@@ -55,22 +58,44 @@ export default class extends HTMLElement {
 
     // Listen for custom element children registering as custom controls.
     this.addEventListener('customdashform:registercontrol',
-      this._onregisterCustomControl.bind(this), false);
+      this._onregisterCustomControl, false);
+  }
+
+  _observeMutations(mutations) {
+    mutations.forEach((mutation)=>{
+      const removed = Array.from(mutation.removedNodes),
+            added = Array.from(mutation.addedNodes);
+      // If the current form is removed, destroy.
+      if (removed.indexOf(this._form) > -1) {
+        this._destroy();
+      }
+      // If a new form is added, re-init then quit.
+      for (var element of added) {
+        if (element.nodeName.toUpperCase() === 'FORM') {
+          this._init();
+          return;
+        }
+      }
+    });
   }
 
   /**
    * Shortcut to programmatically disconnect, if needed.
    */
   _destroy() {
-    this.disconnectedCallback();
+    this._isInitialized = false;
+    this.removeEventListener('blur', this._blurHandler, true);
+    this.removeEventListener('customdashform:registercontrol',
+      this._onregisterCustomControl, false);
+    this.removeEventListener('submit', this._submitHandler, false);
   }
 
   /**
    * Custom element reaction for when the element is disconnected from the DOM.
    */
   disconnectedCallback() {
-    this.removeEventListener('blur', this._blurHandler, true);
-    this.addEventListener('submit', this._submitHandler, false);
+    this.destroy();
+    this._mutationObserver.disconnect()
   }
 
   /**
