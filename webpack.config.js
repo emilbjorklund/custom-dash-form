@@ -31,7 +31,7 @@ module.exports = {
                 browsers: pkg.browserlist
               },
               useBuiltins: true,
-              debug: true
+              //debug: true
             }]]
           }
         }
