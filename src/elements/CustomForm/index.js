@@ -144,7 +144,7 @@ export default class extends HTMLElement {
    * @return {array} - Array of ignored input types.
    */
   get _ignoredTypes() {
-    return ['field', 'submit', 'button', 'reset'];
+    return ['file', 'hidden', 'submit', 'button', 'reset'];
   }
   /**
    * Class name for error messages.
