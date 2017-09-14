@@ -407,6 +407,7 @@ export default class extends HTMLElement {
         ) {
       return true;
     }
+    return false;
   }
 
   /**
