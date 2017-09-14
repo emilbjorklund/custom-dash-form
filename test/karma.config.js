@@ -27,7 +27,7 @@ module.exports = function(config) {
     preprocessors: {
       // only specify one entry point
       // and require all tests in there
-      './karma/test.js': ['webpack']
+      './karma/test.js': ['webpack', 'sourcemap']
     },
 
     reporters: ['spec', 'coverage-istanbul'],
@@ -58,11 +58,13 @@ module.exports = function(config) {
       require("karma-mocha"),
       require("istanbul-instrumenter-loader"),
       require('karma-coverage-istanbul-reporter'),
+      require('karma-sourcemap-loader'),
       //require("karma-coverage"),
-      require("karma-phantomjs-launcher"),
+      //require("karma-phantomjs-launcher"),
+      require("karma-chrome-launcher"),
       require("karma-spec-reporter")
     ],
 
-    browsers: ['PhantomJS']
+    browsers: ['Chrome']
   });
 };
