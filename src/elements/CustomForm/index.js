@@ -276,27 +276,31 @@ export default class extends HTMLElement {
       message = document.createElement('div');
       message.className = this._errorClass;
       message.id = 'error-for-' + id;
-
-      // If the field is a radio button or checkbox, insert error after the label
-      let label = this._getFieldLabel(field);
-      if (label && (field.type === 'radio' || field.type ==='checkbox')) {
-        label.parentElement.insertBefore( message, label.nextElementSibling );
-      } else {
-        field.parentElement.insertBefore( message, field.nextElementSibling );
-      }
-      if (label) {
-        label.classList.add(this._labelErrorClass);
-      }
     }
 
     // Add ARIA role to the field
     field.setAttribute('aria-describedby', 'error-for-' + id);
-
     // Update error message
     message.innerHTML = error;
-
-    return message;
+    return [field, message];
   }
+
+  /**
+   * Place the error message in the DOM, relative to the field.
+   */
+  _placeErrorMessage(field, message) {
+    // If the field is a radio button or checkbox, insert error after the label
+    let label = this._getFieldLabel(field);
+    if (label && (field.type === 'radio' || field.type ==='checkbox')) {
+      label.parentElement.insertBefore( message, label.nextElementSibling );
+    } else {
+      field.parentElement.insertBefore( message, field.nextElementSibling );
+    }
+    if (label) {
+      label.classList.add(this._labelErrorClass);
+    }
+  }
+
   /**
    * Reveal the error message, i.e. making it (re-)render in the DOM.
    * @param  {Element} message - The error message DOM element.
@@ -330,7 +334,8 @@ export default class extends HTMLElement {
         item.classList.add(this._fieldErrorClass);
       });
     }
-    let errorMessage = this._createErrorMessage(field, error);
+    let [errorField, errorMessage] = this._createErrorMessage(field, error);
+    this._placeErrorMessage(field, errorMessage);
     if (errorMessage) {
       this._revealErrorMessage(errorMessage);
     }
